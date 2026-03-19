@@ -4,21 +4,29 @@ import { Player } from './Player.js';
 import { Weapon } from './Weapon.js';
 import { Bot } from './Bot.js';
 import { UIManager } from './UIManager.js';
+import { AudioManager } from './AudioManager.js';
 
 export class Game {
     constructor() {
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(0x111111);
-        this.scene.fog = new THREE.Fog(0x111111, 20, 80);
+        this.scene.background = new THREE.Color(CONFIG.colors.sky);
+        this.scene.fog = new THREE.FogExp2(CONFIG.colors.sky, 0.015);
 
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        this.renderer = new THREE.WebGLRenderer({ 
+            antialias: true,
+            powerPreference: 'high-performance'
+        });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        this.renderer.outputEncoding = THREE.sRGBEncoding;
         document.getElementById('game-container').appendChild(this.renderer.domElement);
 
         this.input = new InputHandler();
         this.ui = new UIManager();
+        this.audio = new AudioManager();
         this.raycaster = new THREE.Raycaster();
         
         this.bots = [];
@@ -28,27 +36,22 @@ export class Game {
         this.setupLights();
         this.setupMap();
         
-        window.addEventListener('resize', () => {
-            this.camera.aspect = window.innerWidth / window.innerHeight;
-            this.camera.updateProjectionMatrix();
-            this.renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        window.addEventListener('resize', () => this.onWindowResize());
 
         this.clock = new THREE.Clock();
         this.animate = this.animate.bind(this);
         
-        // Bind UI Buttons
         document.getElementById('start-btn').addEventListener('click', () => this.start());
         document.getElementById('restart-btn').addEventListener('click', () => location.reload());
     }
 
     setupLights() {
-        // Brighter ambient light
-        const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+        // Bright ambient for visibility
+        const ambient = new THREE.AmbientLight(0xffffff, 0.6);
         this.scene.add(ambient);
 
-        // Main directional light (sun)
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        // Main sun light
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
         dirLight.position.set(50, 100, 50);
         dirLight.castShadow = true;
         dirLight.shadow.camera.left = -100;
@@ -57,24 +60,33 @@ export class Game {
         dirLight.shadow.camera.bottom = -100;
         dirLight.shadow.mapSize.width = 2048;
         dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.bias = -0.0001;
         this.scene.add(dirLight);
 
-        // Add point lights for atmosphere (Rivals Style)
-        const pointLight1 = new THREE.PointLight(0x00ffff, 0.5, 50);
-        pointLight1.position.set(-30, 10, -30);
-        this.scene.add(pointLight1);
+        // Colored point lights for Rivals atmosphere
+        const light1 = new THREE.PointLight(0x00d4ff, 0.8, 60);
+        light1.position.set(-35, 8, -35);
+        this.scene.add(light1);
 
-        const pointLight2 = new THREE.PointLight(0xff00ff, 0.5, 50);
-        pointLight2.position.set(30, 10, 30);
-        this.scene.add(pointLight2);
+        const light2 = new THREE.PointLight(0xff4655, 0.8, 60);
+        light2.position.set(35, 8, 35);
+        this.scene.add(light2);
+
+        const light3 = new THREE.PointLight(0x00ff88, 0.5, 50);
+        light3.position.set(-35, 8, 35);
+        this.scene.add(light3);
+
+        const light4 = new THREE.PointLight(0xffd700, 0.5, 50);
+        light4.position.set(35, 8, -35);
+        this.scene.add(light4);
     }
 
     setupMap() {
-        // Brighter floor with grid texture effect
+        // Floor with grid
         const floorGeo = new THREE.PlaneGeometry(200, 200);
         const floorMat = new THREE.MeshStandardMaterial({ 
             color: CONFIG.colors.floor, 
-            roughness: 0.4,
+            roughness: 0.5,
             metalness: 0.3
         });
         const floor = new THREE.Mesh(floorGeo, floorMat);
@@ -82,122 +94,125 @@ export class Game {
         floor.receiveShadow = true;
         this.scene.add(floor);
 
-        // Add grid helper for Rivals-style look
-        const gridHelper = new THREE.GridHelper(200, 50, 0x00ffff, 0x444444);
-        gridHelper.position.y = 0.01;
+        // Glowing grid
+        const gridHelper = new THREE.GridHelper(200, 40, 0x00d4ff, 0x333344);
+        gridHelper.position.y = 0.02;
         this.scene.add(gridHelper);
 
-        // Create colorful obstacles (Rivals style)
-        const colors = [0xff4655, 0x00d4ff, 0xffd700, 0x9d00ff, 0x00ff88];
+        // Colorful obstacles (Rivals style)
+        const colors = [0xff4655, 0x00d4ff, 0xffd700, 0x9d00ff, 0x00ff88, 0xff6b35];
+        const geometries = [
+            new THREE.BoxGeometry(4, 4, 4),
+            new THREE.CylinderGeometry(2, 2, 6, 8),
+            new THREE.BoxGeometry(3, 8, 3),
+            new THREE.ConeGeometry(2.5, 6, 6)
+        ];
         
-        for (let i = 0; i < 30; i++) {
-            const type = Math.floor(Math.random() * 3);
-            let geometry, material, mesh;
-            
+        for (let i = 0; i < 35; i++) {
+            const geo = geometries[Math.floor(Math.random() * geometries.length)];
             const color = colors[Math.floor(Math.random() * colors.length)];
-            material = new THREE.MeshStandardMaterial({ 
+            
+            const mat = new THREE.MeshStandardMaterial({ 
                 color: color,
                 roughness: 0.3,
-                metalness: 0.5,
+                metalness: 0.6,
                 emissive: color,
-                emissiveIntensity: 0.2
+                emissiveIntensity: 0.25
             });
 
-            if (type === 0) {
-                // Box
-                geometry = new THREE.BoxGeometry(4, 4, 4);
-                mesh = new THREE.Mesh(geometry, material);
-                mesh.position.y = 2;
-            } else if (type === 1) {
-                // Cylinder
-                geometry = new THREE.CylinderGeometry(2, 2, 6, 8);
-                mesh = new THREE.Mesh(geometry, material);
-                mesh.position.y = 3;
-            } else {
-                // Tall pillar
-                geometry = new THREE.BoxGeometry(2, 10, 2);
-                mesh = new THREE.Mesh(geometry, material);
-                mesh.position.y = 5;
-            }
-
-            mesh.position.x = (Math.random() * 80) - 40;
-            mesh.position.z = (Math.random() * 80) - 40;
+            const mesh = new THREE.Mesh(geo, mat);
             
-            // Keep center area clear for spawn
-            if (mesh.position.distanceTo(new THREE.Vector3(0, 0, 0)) < 10) {
-                mesh.position.x += 15;
-            }
-
+            // Random position (avoid center spawn area)
+            let x, z;
+            do {
+                x = (Math.random() * 90) - 45;
+                z = (Math.random() * 90) - 45;
+            } while (Math.sqrt(x*x + z*z) < 12);
+            
+            mesh.position.set(x, geo.parameters.height / 2 || 2, z);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             this.scene.add(mesh);
         }
 
-        // Add boundary walls
+        // Boundary walls with glow
         const wallMat = new THREE.MeshStandardMaterial({ 
             color: 0x1a1a2e,
-            roughness: 0.5
+            roughness: 0.4,
+            metalness: 0.5,
+            emissive: 0x00d4ff,
+            emissiveIntensity: 0.15
         });
         
-        const wallHeight = 8;
-        const wallThickness = 2;
+        const wallHeight = 10;
+        const wallThickness = 3;
         
-        // North wall
-        const northWall = new THREE.Mesh(new THREE.BoxGeometry(100, wallHeight, wallThickness), wallMat);
-        northWall.position.set(0, wallHeight/2, -50);
-        northWall.receiveShadow = true;
-        this.scene.add(northWall);
+        const walls = [
+            { pos: [0, wallHeight/2, -50], scale: [100, wallHeight, wallThickness] },
+            { pos: [0, wallHeight/2, 50], scale: [100, wallHeight, wallThickness] },
+            { pos: [-50, wallHeight/2, 0], scale: [wallThickness, wallHeight, 100] },
+            { pos: [50, wallHeight/2, 0], scale: [wallThickness, wallHeight, 100] }
+        ];
         
-        // South wall
-        const southWall = new THREE.Mesh(new THREE.BoxGeometry(100, wallHeight, wallThickness), wallMat);
-        southWall.position.set(0, wallHeight/2, 50);
-        southWall.receiveShadow = true;
-        this.scene.add(southWall);
-        
-        // East wall
-        const eastWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, 100), wallMat);
-        eastWall.position.set(50, wallHeight/2, 0);
-        eastWall.receiveShadow = true;
-        this.scene.add(eastWall);
-        
-        // West wall
-        const westWall = new THREE.Mesh(new THREE.BoxGeometry(wallThickness, wallHeight, 100), wallMat);
-        westWall.position.set(-50, wallHeight/2, 0);
-        westWall.receiveShadow = true;
-        this.scene.add(westWall);
+        walls.forEach(w => {
+            const wall = new THREE.Mesh(new THREE.BoxGeometry(...w.scale), wallMat);
+            wall.position.set(...w.pos);
+            wall.receiveShadow = true;
+            this.scene.add(wall);
+        });
+    }
+
+    onWindowResize() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
     start() {
+        // Resume audio context on user interaction
+        this.audio.resume();
+        
         const charType = document.getElementById('char-select').value;
         const diff = document.getElementById('diff-select').value;
 
-        this.player = new Player(this.scene, this.camera, this.input, charType);
-        this.weapon = new Weapon('rifle');
+        this.player = new Player(this.scene, this.camera, this.input, charType, this.audio);
+        this.weapon = new Weapon('rifle', this.audio);
+        
+        // Setup input callbacks
+        this.input.onShoot = () => {
+            if (this.isPlaying) {
+                this.player.shoot(this.weapon, this.raycaster, this.bots, 
+                    (bot) => {
+                        this.killBot(bot);
+                        this.ui.showHitMarker();
+                    },
+                    () => {}
+                );
+            }
+        };
+        
+        this.input.onReload = () => {
+            if (this.isPlaying) {
+                this.ui.showReloadIndicator();
+                this.weapon.reload(() => {
+                    this.ui.hideReloadIndicator();
+                    this.ui.updateAmmo(this.weapon.currentAmmo, this.weapon.totalAmmo);
+                });
+            }
+        };
         
         this.bots = [];
-        for(let i=0; i<CONFIG.botCount; i++) {
-            this.bots.push(new Bot(this.scene, diff));
+        for(let i = 0; i < CONFIG.botCount; i++) {
+            this.bots.push(new Bot(this.scene, diff, this.audio));
         }
 
         this.isPlaying = true;
         this.playerKills = 0;
         this.ui.startGame();
         this.ui.updateHealth(this.player.health, this.player.maxHealth);
+        this.ui.updateAmmo(this.weapon.currentAmmo, this.weapon.totalAmmo);
         
         document.body.requestPointerLock();
-
-        document.addEventListener('mousedown', () => {
-            if(this.isPlaying) this.player.shoot(this.weapon, this.raycaster, this.bots, 
-                (bot) => this.killBot(bot), 
-                () => {}
-            );
-        });
-
-        document.addEventListener('keydown', (e) => {
-            if(e.code === 'KeyR' && this.isPlaying) {
-                this.weapon.reload(() => this.ui.updateAmmo(this.weapon.currentAmmo));
-            }
-        });
 
         this.animate();
     }
@@ -208,10 +223,13 @@ export class Game {
         this.playerKills++;
         this.ui.addKillFeed(`You killed ${bot.mesh.userData.name}`);
         
+        // Respawn bot after delay
         setTimeout(() => {
-            const diff = document.getElementById('diff-select').value;
-            this.bots.push(new Bot(this.scene, diff));
-        }, 3000);
+            if (this.isPlaying) {
+                const diff = document.getElementById('diff-select').value;
+                this.bots.push(new Bot(this.scene, diff, this.audio));
+            }
+        }, 4000);
 
         this.ui.updateLeaderboard(this.playerKills, this.bots);
     }
@@ -228,23 +246,31 @@ export class Game {
 
         const dt = Math.min(this.clock.getDelta(), 0.1);
 
-        this.player.update(dt);
+        // Update player with weapon recoil
+        this.weapon.update();
+        this.player.update(dt, this.weapon.recoil);
         
+        // Update bots
         this.bots.forEach(bot => {
-            const botShot = bot.update(dt, this.player.camera.position, this.player.mesh);
-            if(botShot) {
-                // Simple hit chance for bots
-                if(Math.random() > 0.3) {
-                    const dead = this.player.takeDamage(10);
+            const botFired = bot.update(dt, this.player.camera.position, this.player.mesh);
+            if (botFired) {
+                // Bot hit chance
+                if (Math.random() > 0.4) {
+                    const dead = this.player.takeDamage(bot.damage);
                     this.ui.updateHealth(this.player.health, this.player.maxHealth);
                     this.ui.showDamageFlash();
-                    if(dead) this.gameOver();
+                    if (dead) this.gameOver();
                 }
             }
         });
 
-        this.ui.updateAmmo(this.weapon.currentAmmo);
-        if(Math.random() < 0.05) this.ui.updateLeaderboard(this.playerKills, this.bots);
+        // Update UI
+        this.ui.updateAmmo(this.weapon.currentAmmo, this.weapon.totalAmmo);
+        
+        // Throttle leaderboard updates
+        if (Math.random() < 0.02) {
+            this.ui.updateLeaderboard(this.playerKills, this.bots);
+        }
 
         this.renderer.render(this.scene, this.camera);
     }
