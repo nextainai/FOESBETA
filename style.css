@@ -1,0 +1,182 @@
+@import url('https://fonts.googleapis.com/css2?family=Teko:wght@400;600&display=swap');
+
+:root {
+    --primary: #ff4655;
+    --dark: #0f1923;
+    --light: #ece8e1;
+    --ui-bg: rgba(15, 25, 35, 0.9);
+}
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background-color: var(--dark);
+    font-family: 'Teko', sans-serif;
+    color: var(--light);
+    user-select: none;
+}
+
+#game-container {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 1;
+}
+
+/* UI Layers */
+.ui-layer {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 10;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.hidden { display: none !important; }
+
+/* Menus */
+.menu-screen {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: var(--ui-bg);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+    z-index: 20;
+    backdrop-filter: blur(5px);
+}
+
+h1 { font-size: 6rem; margin: 0; color: var(--primary); text-transform: uppercase; letter-spacing: 5px; }
+h2 { font-size: 3rem; margin: 10px 0; }
+.subtitle { font-size: 1.5rem; opacity: 0.7; margin-bottom: 30px; }
+
+.menu-options {
+    background: rgba(0,0,0,0.3);
+    padding: 20px;
+    border: 1px solid #333;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+.option-group { margin: 10px 0; }
+select {
+    padding: 5px 10px;
+    font-family: 'Teko', sans-serif;
+    font-size: 1.2rem;
+    background: #222;
+    color: white;
+    border: 1px solid #555;
+}
+
+.btn {
+    background: var(--light);
+    color: var(--dark);
+    border: 2px solid var(--light);
+    padding: 10px 40px;
+    font-size: 1.5rem;
+    font-family: 'Teko', sans-serif;
+    cursor: pointer;
+    margin: 10px;
+    text-transform: uppercase;
+    transition: 0.2s;
+    clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+}
+
+.btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+
+/* HUD Elements */
+.hud-top { display: flex; justify-content: space-between; padding: 20px; }
+
+.leaderboard {
+    background: rgba(0,0,0,0.5);
+    padding: 10px;
+    border-left: 4px solid var(--primary);
+    min-width: 200px;
+}
+.lb-header { border-bottom: 1px solid #555; margin-bottom: 5px; font-weight: bold; }
+.leaderboard-row { display: flex; justify-content: space-between; font-size: 1.2rem; }
+
+.kill-feed {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 5px;
+}
+.kill-msg {
+    background: rgba(0,0,0,0.6);
+    padding: 5px 10px;
+    font-size: 1.2rem;
+    border-right: 3px solid var(--primary);
+    animation: fadeOut 4s forwards;
+}
+
+.hud-bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    padding: 30px;
+}
+
+.health-bar-container {
+    width: 300px; height: 25px;
+    background: #333;
+    position: relative;
+    transform: skewX(-20deg);
+    border: 1px solid #000;
+}
+.health-fill {
+    width: 100%; height: 100%;
+    background: var(--primary);
+    transition: width 0.2s;
+}
+.health-text {
+    position: absolute;
+    top: 2px; left: 15px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-shadow: 1px 1px 0 #000;
+}
+
+.ammo-display {
+    font-size: 4rem;
+    text-align: right;
+    line-height: 1;
+    text-shadow: 2px 2px 0 #000;
+}
+.ammo-display span { font-size: 1.5rem; color: #888; }
+
+/* Crosshair */
+#crosshair {
+    position: absolute;
+    top: 50%; left: 50%;
+    width: 20px; height: 20px;
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    z-index: 15;
+}
+.ch-dot { position: absolute; background: var(--primary); box-shadow: 0 0 2px black; }
+.ch-center { width: 4px; height: 4px; top: 8px; left: 8px; }
+.ch-h { width: 12px; height: 2px; top: 9px; left: 4px; }
+.ch-v { width: 2px; height: 12px; top: 4px; left: 9px; }
+
+#damage-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: radial-gradient(circle, transparent 50%, rgba(255, 0, 0, 0.4) 100%);
+    opacity: 0; pointer-events: none; transition: opacity 0.2s; z-index: 5;
+}
+
+.dev-info {
+    position: absolute; bottom: 10px; width: 100%;
+    text-align: center; font-size: 0.9rem; opacity: 0.5; z-index: 30;
+}
+
+@keyframes fadeOut {
+    0% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; }
+}
