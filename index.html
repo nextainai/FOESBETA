@@ -3,27 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FOES - (BETA)</title>
+    <title>FOES - Av2arx Games</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Three.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 </head>
 <body>
-
-    <!-- 3D Canvas Container -->
     <div id="game-container"></div>
-
-    <!-- Damage Flash Overlay -->
     <div id="damage-overlay"></div>
-
-    <!-- Crosshair -->
     <div id="crosshair">
         <div class="ch-dot ch-h"></div>
         <div class="ch-dot ch-v"></div>
         <div class="ch-dot ch-center"></div>
     </div>
 
-    <!-- Main Menu -->
     <div id="main-menu" class="menu-screen">
         <h1>FOES</h1>
         <div class="subtitle">Developed by Av2arx Games</div>
@@ -37,7 +29,6 @@
                     <option value="tank">Tank</option>
                 </select>
             </div>
-
             <div class="option-group">
                 <label>DIFFICULTY:</label>
                 <select id="diff-select">
@@ -52,14 +43,12 @@
         <div class="dev-info">Developer: Ritam Das</div>
     </div>
 
-    <!-- Game Over Screen -->
     <div id="game-over" class="menu-screen hidden">
         <h1 style="color: white;">GAME OVER</h1>
         <h2 id="final-score">Kills: 0</h2>
         <button class="btn" id="restart-btn">MAIN MENU</button>
     </div>
 
-    <!-- HUD (Heads Up Display) -->
     <div id="hud" class="ui-layer hidden">
         <div class="hud-top">
             <div class="leaderboard">
@@ -81,7 +70,6 @@
         </div>
     </div>
 
-    <!-- Main Script (Type Module enables imports) -->
     <script type="module" src="js/main.js"></script>
 </body>
 </html>
