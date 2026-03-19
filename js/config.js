@@ -1,13 +1,13 @@
 export const CONFIG = {
     sensitivity: 0.002,
-    playerSpeed: 10,
+    playerSpeed: 12,
     jumpForce: 15,
     gravity: 30,
     botCount: 6,
     colors: {
         enemy: 0xff4655,
         wall: 0x1f2731,
-        floor: 0x111111,
+        floor: 0x2a2a3a,
         highlight: 0x00ffcc
     }
 };
