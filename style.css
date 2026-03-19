@@ -2,9 +2,10 @@
 
 :root {
     --primary: #ff4655;
+    --secondary: #00d4ff;
     --dark: #0f1923;
     --light: #ece8e1;
-    --ui-bg: rgba(15, 25, 35, 0.9);
+    --ui-bg: rgba(15, 25, 35, 0.95);
 }
 
 body {
@@ -52,7 +53,7 @@ body {
     backdrop-filter: blur(5px);
 }
 
-h1 { font-size: 6rem; margin: 0; color: var(--primary); text-transform: uppercase; letter-spacing: 5px; }
+h1 { font-size: 6rem; margin: 0; color: var(--primary); text-transform: uppercase; letter-spacing: 5px; text-shadow: 0 0 20px rgba(255, 70, 85, 0.5); }
 h2 { font-size: 3rem; margin: 10px 0; }
 .subtitle { font-size: 1.5rem; opacity: 0.7; margin-bottom: 30px; }
 
@@ -72,12 +73,13 @@ select {
     background: #222;
     color: white;
     border: 1px solid #555;
+    cursor: pointer;
 }
 
 .btn {
-    background: var(--light);
-    color: var(--dark);
-    border: 2px solid var(--light);
+    background: var(--primary);
+    color: white;
+    border: 2px solid var(--primary);
     padding: 10px 40px;
     font-size: 1.5rem;
     font-family: 'Teko', sans-serif;
@@ -86,21 +88,29 @@ select {
     text-transform: uppercase;
     transition: 0.2s;
     clip-path: polygon(10% 0, 100% 0, 100% 70%, 90% 100%, 0 100%, 0 30%);
+    font-weight: bold;
 }
 
-.btn:hover { background: var(--primary); color: white; border-color: var(--primary); }
+.btn:hover { 
+    background: white; 
+    color: var(--primary); 
+    border-color: white;
+    box-shadow: 0 0 20px rgba(255, 70, 85, 0.6);
+    transform: scale(1.05);
+}
 
 /* HUD Elements */
 .hud-top { display: flex; justify-content: space-between; padding: 20px; }
 
 .leaderboard {
-    background: rgba(0,0,0,0.5);
-    padding: 10px;
+    background: rgba(0,0,0,0.6);
+    padding: 15px;
     border-left: 4px solid var(--primary);
     min-width: 200px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
 }
-.lb-header { border-bottom: 1px solid #555; margin-bottom: 5px; font-weight: bold; }
-.leaderboard-row { display: flex; justify-content: space-between; font-size: 1.2rem; }
+.lb-header { border-bottom: 1px solid #555; margin-bottom: 5px; font-weight: bold; color: var(--secondary); }
+.leaderboard-row { display: flex; justify-content: space-between; font-size: 1.2rem; padding: 2px 0; }
 
 .kill-feed {
     text-align: right;
@@ -111,10 +121,11 @@ select {
 }
 .kill-msg {
     background: rgba(0,0,0,0.6);
-    padding: 5px 10px;
+    padding: 5px 15px;
     font-size: 1.2rem;
     border-right: 3px solid var(--primary);
     animation: fadeOut 4s forwards;
+    text-shadow: 0 0 5px black;
 }
 
 .hud-bottom {
@@ -130,10 +141,12 @@ select {
     position: relative;
     transform: skewX(-20deg);
     border: 1px solid #000;
+    overflow: hidden;
 }
 .health-fill {
     width: 100%; height: 100%;
-    background: var(--primary);
+    background: linear-gradient(90deg, #ff4655, #ff6b6b);
+    box-shadow: 0 0 10px #ff4655;
     transition: width 0.2s;
 }
 .health-text {
@@ -142,6 +155,7 @@ select {
     font-size: 1.5rem;
     font-weight: bold;
     text-shadow: 1px 1px 0 #000;
+    z-index: 2;
 }
 
 .ammo-display {
@@ -149,6 +163,7 @@ select {
     text-align: right;
     line-height: 1;
     text-shadow: 2px 2px 0 #000;
+    font-weight: bold;
 }
 .ammo-display span { font-size: 1.5rem; color: #888; }
 
@@ -161,7 +176,7 @@ select {
     pointer-events: none;
     z-index: 15;
 }
-.ch-dot { position: absolute; background: var(--primary); box-shadow: 0 0 2px black; }
+.ch-dot { position: absolute; background: #00ff88; box-shadow: 0 0 4px #00ff88; }
 .ch-center { width: 4px; height: 4px; top: 8px; left: 8px; }
 .ch-h { width: 12px; height: 2px; top: 9px; left: 4px; }
 .ch-v { width: 2px; height: 12px; top: 4px; left: 9px; }
