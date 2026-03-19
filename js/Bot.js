@@ -4,7 +4,12 @@ export class Bot {
     constructor(scene, difficulty) {
         this.mesh = new THREE.Mesh(
             new THREE.BoxGeometry(1.5, 3, 1.5),
-            new THREE.MeshStandardMaterial({ color: CONFIG.colors.enemy })
+            new THREE.MeshStandardMaterial({ 
+                color: CONFIG.colors.enemy,
+                emissive: 0xff0000,
+                emissiveIntensity: 0.3,
+                roughness: 0.3
+            })
         );
         this.mesh.position.set(this.rnd(-40, 40), 1.5, this.rnd(-40, 40));
         this.mesh.userData = { isEnemy: true, health: 100, maxHealth: 100, name: BOT_NAMES[Math.floor(Math.random()*BOT_NAMES.length)] };
@@ -46,9 +51,6 @@ export class Bot {
                 const hits = raycaster.intersectObject(playerMesh);
                 
                 if (hits.length > 0) {
-                    // Bot hits player logic handled in Game.js via callback if needed, 
-                    // but for simplicity we trigger damage directly here if we had a reference.
-                    // To keep modules clean, we return 'true' if shot fired.
                     return true; 
                 }
                 this.lastShot = now;
