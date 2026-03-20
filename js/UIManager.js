@@ -39,7 +39,6 @@ export class UIManager {
         this.healthFill.style.width = `${pct}%`;
         this.healthText.innerText = Math.ceil(curr);
         
-        // Color change on low health
         if (pct < 30) {
             this.healthFill.style.background = 'linear-gradient(90deg, #ff0000 0%, #ff4444 100%)';
         } else {
@@ -49,9 +48,7 @@ export class UIManager {
 
     updateAmmo(curr, total) {
         this.ammoCurr.innerText = curr;
-        if (total !== undefined) {
-            this.ammoTotal.innerText = total;
-        }
+        this.ammoTotal.innerText = total;
     }
 
     addKillFeed(msg) {
@@ -59,40 +56,26 @@ export class UIManager {
         div.className = 'kill-msg';
         div.innerText = msg;
         this.feed.appendChild(div);
-        setTimeout(() => div.remove(), 4000);
+        setTimeout(() => div.remove(), 4500);
     }
 
     showHitMarker() {
         const marker = document.createElement('div');
         marker.className = 'hit-marker';
         document.body.appendChild(marker);
-        setTimeout(() => marker.remove(), 200);
-    }
-
-    showReloadIndicator() {
-        const indicator = document.createElement('div');
-        indicator.className = 'reload-indicator';
-        indicator.innerText = 'RELOADING...';
-        indicator.id = 'reload-text';
-        document.body.appendChild(indicator);
-    }
-
-    hideReloadIndicator() {
-        const indicator = document.getElementById('reload-text');
-        if (indicator) indicator.remove();
+        setTimeout(() => marker.remove(), 180);
     }
 
     updateLeaderboard(playerKills, bots) {
         let html = `<div class="leaderboard-row"><span>YOU</span><span>${playerKills}</span></div>`;
         
-        // Sort bots by random score for leaderboard effect
-        const botScores = bots.map(bot => ({
-            name: bot.mesh.userData.name,
-            score: Math.floor(Math.random() * 8)
+        const scores = bots.map(b => ({
+            name: b.mesh.userData.name,
+            score: Math.floor(Math.random() * 6)
         })).sort((a, b) => b.score - a.score);
         
-        botScores.forEach(bot => {
-            html += `<div class="leaderboard-row"><span>${bot.name}</span><span>${bot.score}</span></div>`;
+        scores.forEach(s => {
+            html += `<div class="leaderboard-row"><span>${s.name}</span><span>${s.score}</span></div>`;
         });
         
         this.lbContent.innerHTML = html;
@@ -100,7 +83,7 @@ export class UIManager {
     
     showDamageFlash() {
         const overlay = document.getElementById('damage-overlay');
-        overlay.style.opacity = 0.8;
-        setTimeout(() => overlay.style.opacity = 0, 200);
+        overlay.style.opacity = 0.7;
+        setTimeout(() => overlay.style.opacity = 0, 180);
     }
 }
