@@ -7,17 +7,16 @@ import { UIManager } from './UIManager.js';
 
 export class Game {
     constructor() {
+        console.log('Game Constructor Started');
+        
         this.scene = new THREE.Scene();
-        this.scene.background = new THREE.Color(CONFIG.colors.sky);
-        this.scene.fog = new THREE.FogExp2(CONFIG.colors.sky, 0.012);
+        this.scene.background = new THREE.Color(0x0a0a15);
+        this.scene.fog = new THREE.FogExp2(0x0a0a15, 0.012);
 
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+        this.renderer = new THREE.WebGLRenderer({ antialias: true });
         this.renderer.setSize(window.innerWidth, window.innerHeight);
-        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        this.renderer.outputEncoding = THREE.sRGBEncoding;
         document.getElementById('game-container').appendChild(this.renderer.domElement);
 
         this.input = new InputHandler();
@@ -27,104 +26,133 @@ export class Game {
         this.bots = [];
         this.playerKills = 0;
         this.isPlaying = false;
+        this.player = null;
+        this.weapon = null;
 
         this.setupLights();
         this.setupMap();
         
         window.addEventListener('resize', () => this.onResize());
+        
         this.clock = new THREE.Clock();
         this.animate = this.animate.bind(this);
         
-        document.getElementById('start-btn').addEventListener('click', () => this.start());
-        document.getElementById('restart-btn').addEventListener('click', () => location.reload());
+        // FIXED: Button listener with debug
+        const startBtn = document.getElementById('start-btn');
+        const restartBtn = document.getElementById('restart-btn');
+        
+        console.log('Start Button:', startBtn);
+        console.log('Restart Button:', restartBtn);
+        
+        if (startBtn) {
+            startBtn.addEventListener('click', () => {
+                console.log('PLAY NOW clicked!');
+                this.start();
+            });
+        } else {
+            console.error('Start button not found!');
+        }
+        
+        if (restartBtn) {
+            restartBtn.addEventListener('click', () => {
+                location.reload();
+            });
+        }
+        
+        console.log('Game Constructor Complete');
     }
 
     setupLights() {
-        const ambient = new THREE.AmbientLight(0xffffff, 0.5);
+        const ambient = new THREE.AmbientLight(0xffffff, 0.6);
         this.scene.add(ambient);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1.1);
-        dirLight.position.set(50, 120, 50);
-Light.castShadow = true;
-        dirLight.shadow.camera.left = -120;
-        dirLight.shadow.camera.right = 120;
-        dirLight.shadow.camera.top = 120;
-        dirLight.shadow.camera.bottom = -120;
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        dirLight.position.set(50, 100, 50);
+        dirLight.castShadow = true;
+        dirLight.shadow.camera.left = -100;
+        dirLight.shadow.camera.right = 100;
+        dirLight.shadow.camera.top = 100;
+        dirLight.shadow.camera.bottom = -100;
         dirLight.shadow.mapSize.width = 2048;
         dirLight.shadow.mapSize.height = 2048;
         this.scene.add(dirLight);
 
-        // Rivals-style colored lights
-        const l1 = new THREE.PointLight(0x00d4ff, 0.7, 70);
-        l1.position.set(-40, 10, -40);
-        this.scene.add(l1);
+        const light1 = new THREE.PointLight(0x00d4ff, 0.6, 60);
+        light1.position.set(-35, 10, -35);
+        this.scene.add(light1);
 
-        const l2 = new THREE.PointLight(0xff4655, 0.7, 70);
-        l2.position.set(40, 10, 40);
-        this.scene.add(l2);
+        const light2 = new THREE.PointLight(0xff4655, 0.6, 60);
+        light2.position.set(35, 10, 35);
+        this.scene.add(light2);
     }
 
     setupMap() {
-        // Floor
-        const floorGeo = new THREE.PlaneGeometry(100, 100);
+        const floorGeo = new THREE.PlaneGeometry(200, 200);
         const floorMat = new THREE.MeshStandardMaterial({ 
-            color: CONFIG.colors.floor, 
-            roughness: 0.6,
-            metalness: 0.2
+            color: 0x1a1a2e, 
+            roughness: 0.5,
+            metalness: 0.3
         });
         const floor = new THREE.Mesh(floorGeo, floorMat);
         floor.rotation.x = -Math.PI / 2;
         floor.receiveShadow = true;
         this.scene.add(floor);
 
-        // Grid (Rivals style)
-        const grid = new THREE.GridHelper(100, 50, 0x00d4ff, 0x333344);
-        grid.position.y = 0.01;
-        this.scene.add(grid);
+        const gridHelper = new THREE.GridHelper(200, 40, 0x00d4ff, 0x333344);
+        gridHelper.position.y = 0.02;
+        this.scene.add(gridHelper);
 
-        // Platforms (like Rivals)
-        const platforms = [
-            { pos: [-25, 2, -25], size: [10, 4, 10], color: 0xff4655 },
-            { pos: [25, 2, 25], size: [10, 4, 10], color: 0x00d4ff },
-            { pos: [-25, 2, 25], size: [10, 4, 10], color: 0xffd700 },
-            { pos: [25, 2, -25], size: [10, 4, 10], color: 0x9d00ff },
-            { pos: [0, 4, 0], size: [20, 6, 20], color: 0x00ff88 }
+        const colors = [0xff4655, 0x00d4ff, 0xffd700, 0x9d00ff, 0x00ff88];
+        const geometries = [
+            new THREE.BoxGeometry(4, 4, 4),
+            new THREE.CylinderGeometry(2, 2, 6, 8),
+            new THREE.BoxGeometry(3, 8, 3)
         ];
-
-        platforms.forEach(p => {
-            const geo = new THREE.BoxGeometry(p.size[0], p.size[1], p.size[2]);
-            const mat = new THREE.MeshStandardMaterial({
-                color: p.color,
+        
+        for (let i = 0; i < 35; i++) {
+            const geo = geometries[Math.floor(Math.random() * geometries.length)];
+            const color = colors[Math.floor(Math.random() * colors.length)];
+            
+            const mat = new THREE.MeshStandardMaterial({ 
+                color: color,
                 roughness: 0.3,
                 metalness: 0.6,
-                emissive: p.color,
-                emissiveIntensity: 0.2
+                emissive: color,
+                emissiveIntensity: 0.25
             });
+
             const mesh = new THREE.Mesh(geo, mat);
-            mesh.position.set(p.pos[0], p.pos[1], p.pos[2]);
+            
+            let x, z;
+            do {
+                x = (Math.random() * 90) - 45;
+                z = (Math.random() * 90) - 45;
+            } while (Math.sqrt(x*x + z*z) < 12);
+            
+            mesh.position.set(x, geo.parameters.height / 2 || 2, z);
             mesh.castShadow = true;
             mesh.receiveShadow = true;
             this.scene.add(mesh);
-        });
+        }
 
-        // Walls
         const wallMat = new THREE.MeshStandardMaterial({ 
             color: 0x1a1a2e,
             roughness: 0.4,
-            metalness: 0.5,
-            emissive: 0x00d4ff,
-            emissiveIntensity: 0.1
+            metalness: 0.5
         });
         
+        const wallHeight = 10;
+        const wallThickness = 3;
+        
         const walls = [
-            { pos: [0, 5, -50], size: [100, 10, 3] },
-            { pos: [0, 5, 50], size: [100, 10, 3] },
-            { pos: [-50, 5, 0], size: [3, 10, 100] },
-            { pos: [50, 5, 0], size: [3, 10, 100] }
+            { pos: [0, wallHeight/2, -50], scale: [100, wallHeight, wallThickness] },
+            { pos: [0, wallHeight/2, 50], scale: [100, wallHeight, wallThickness] },
+            { pos: [-50, wallHeight/2, 0], scale: [wallThickness, wallHeight, 100] },
+            { pos: [50, wallHeight/2, 0], scale: [wallThickness, wallHeight, 100] }
         ];
         
         walls.forEach(w => {
-            const wall = new THREE.Mesh(new THREE.BoxGeometry(...w.size), wallMat);
+            const wall = new THREE.Mesh(new THREE.BoxGeometry(...w.scale), wallMat);
             wall.position.set(...w.pos);
             wall.receiveShadow = true;
             this.scene.add(wall);
@@ -138,14 +166,19 @@ Light.castShadow = true;
     }
 
     start() {
+        console.log('Game Start Function Called');
+        
         const charType = document.getElementById('char-select').value;
         const diff = document.getElementById('diff-select').value;
+
+        console.log('Character:', charType);
+        console.log('Difficulty:', diff);
 
         this.player = new Player(this.scene, this.camera, this.input, charType);
         this.weapon = new Weapon('rifle');
         
         this.input.onShoot = () => {
-            if (this.isPlaying) {
+            if (this.isPlaying && this.player && this.weapon) {
                 this.player.shoot(this.weapon, this.raycaster, this.bots, (bot) => {
                     this.killBot(bot);
                     this.ui.showHitMarker();
@@ -154,13 +187,13 @@ Light.castShadow = true;
         };
         
         this.input.onReload = () => {
-            if (this.isPlaying) {
+            if (this.isPlaying && this.weapon) {
                 this.weapon.reload(() => {
                     this.ui.updateAmmo(this.weapon.currentAmmo, this.weapon.totalAmmo);
                 });
             }
         };
-
+        
         this.bots = [];
         for(let i = 0; i < CONFIG.botCount; i++) {
             this.bots.push(new Bot(this.scene, diff));
@@ -173,6 +206,8 @@ Light.castShadow = true;
         this.ui.updateAmmo(this.weapon.currentAmmo, this.weapon.totalAmmo);
         
         document.body.requestPointerLock();
+        
+        console.log('Game Started Successfully');
         this.animate();
     }
 
@@ -204,23 +239,30 @@ Light.castShadow = true;
 
         const dt = Math.min(this.clock.getDelta(), 0.1);
 
-        this.weapon.update();
-        this.player.update(dt, this.weapon.recoil);
+        if (this.weapon) this.weapon.update();
+        if (this.player) this.player.update(dt, this.weapon ? this.weapon.recoil : 0);
         
-        this.bots.forEach(bot => {
-            const fired = bot.update(dt, this.player.camera.position);
-            if (fired) {
-                if (Math.random() > 0.5) {
-                    const dead = this.player.takeDamage(bot.damage);
-                    this.ui.updateHealth(this.player.health, this.player.maxHealth);
-                    this.ui.showDamageFlash();
-                    if (dead) this.gameOver();
+        if (this.bots && this.player) {
+            this.bots.forEach(bot => {
+                const botFired = bot.update(dt, this.player.camera.position, this.player.mesh);
+                if (botFired) {
+                    if (Math.random() > 0.4) {
+                        const dead = this.player.takeDamage(8);
+                        if (this.ui) this.ui.updateHealth(this.player.health, this.player.maxHealth);
+                        if (this.ui) this.ui.showDamageFlash();
+                        if (dead) this.gameOver();
+                    }
                 }
-            }
-        });
+            });
+        }
 
-        this.ui.updateAmmo(this.weapon.currentAmmo, this.weapon.totalAmmo);
-        if (Math.random() < 0.01) this.ui.updateLeaderboard(this.playerKills, this.bots);
+        if (this.ui && this.weapon) {
+            this.ui.updateAmmo(this.weapon.currentAmmo, this.weapon.totalAmmo);
+        }
+        
+        if (Math.random() < 0.02 && this.ui) {
+            this.ui.updateLeaderboard(this.playerKills, this.bots);
+        }
 
         this.renderer.render(this.scene, this.camera);
     }
