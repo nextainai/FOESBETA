@@ -5,11 +5,7 @@ export class InputHandler {
         this.isLocked = false;
         this.mouseDown = false;
 
-        document.addEventListener('keydown', e => {
-            this.keys[e.code] = true;
-            if (e.code === 'KeyR') this.onReload();
-        });
-        
+        document.addEventListener('keydown', e => this.keys[e.code] = true);
         document.addEventListener('keyup', e => this.keys[e.code] = false);
         
         document.addEventListener('mousemove', e => {
