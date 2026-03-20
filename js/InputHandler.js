@@ -1,34 +1,26 @@
-export class InputHandler {
-    constructor() {
-        this.keys = {};
-        this.mouse = { x: 0, y: 0 };
-        this.isLocked = false;
-        this.mouseDown = false;
+export default class InputHandler {
+  constructor(camera) {
+    this.keys = {};
+    this.camera = camera;
+    this.pitch = 0;
+    this.yaw = 0;
 
-        document.addEventListener('keydown', e => this.keys[e.code] = true);
-        document.addEventListener('keyup', e => this.keys[e.code] = false);
-        
-        document.addEventListener('mousemove', e => {
-            if (this.isLocked) {
-                this.mouse.x = e.movementX;
-                this.mouse.y = e.movementY;
-            }
-        });
+    document.addEventListener("keydown", e => this.keys[e.key] = true);
+    document.addEventListener("keyup", e => this.keys[e.key] = false);
 
-        document.addEventListener('mousedown', () => {
-            this.mouseDown = true;
-            if (this.onShoot) this.onShoot();
-        });
+    document.body.addEventListener("click", () => {
+      document.body.requestPointerLock();
+    });
 
-        document.addEventListener('mouseup', () => {
-            this.mouseDown = false;
-        });
+    document.addEventListener("mousemove", e => {
+      if (document.pointerLockElement === document.body) {
+        this.yaw -= e.movementX * 0.002;
+        this.pitch -= e.movementY * 0.002;
 
-        document.addEventListener('pointerlockchange', () => {
-            this.isLocked = document.pointerLockElement === document.body;
-        });
-    }
+        this.pitch = Math.max(-Math.PI/2, Math.min(Math.PI/2, this.pitch));
 
-    onShoot = null;
-    onReload = null;
+        camera.rotation.set(this.pitch, this.yaw, 0);
+      }
+    });
+  }
 }
