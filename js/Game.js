@@ -7,8 +7,7 @@ import { UIManager } from './UIManager.js';
 
 export class Game {
     constructor() {
-        console.log('Game Constructor Started');
-        
+        // Initialize immediately
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x0a0a15);
         this.scene.fog = new THREE.FogExp2(0x0a0a15, 0.012);
@@ -22,7 +21,7 @@ export class Game {
         this.input = new InputHandler();
         this.ui = new UIManager();
         this.raycaster = new THREE.Raycaster();
-        
+
         this.bots = [];
         this.playerKills = 0;
         this.isPlaying = false;
@@ -31,35 +30,27 @@ export class Game {
 
         this.setupLights();
         this.setupMap();
-        
+
         window.addEventListener('resize', () => this.onResize());
-        
+
+        // 🔥 CRITICAL FIX: Do NOT start animation here
+        // Wait for user click to start rendering loop
+
         this.clock = new THREE.Clock();
-        this.animate = this.animate.bind(this);
-        
-        // FIXED: Button listener with debug
+        this.animationFrameId = null; // Track requestAnimationFrame ID
+
+        // Button listeners
         const startBtn = document.getElementById('start-btn');
         const restartBtn = document.getElementById('restart-btn');
-        
-        console.log('Start Button:', startBtn);
-        console.log('Restart Button:', restartBtn);
-        
+
         if (startBtn) {
-            startBtn.addEventListener('click', () => {
-                console.log('PLAY NOW clicked!');
-                this.start();
-            });
-        } else {
-            console.error('Start button not found!');
+            startBtn.addEventListener('click', () => this.start());
         }
-        
         if (restartBtn) {
-            restartBtn.addEventListener('click', () => {
-                location.reload();
-            });
+            restartBtn.addEventListener('click', () => location.reload());
         }
-        
-        console.log('Game Constructor Complete');
+
+        console.log('FOES Game loaded. Waiting for PLAY NOW click.');
     }
 
     setupLights() {
@@ -166,49 +157,103 @@ export class Game {
     }
 
     start() {
-        console.log('Game Start Function Called');
-        
+        console.log('[GAME] Start called');
+
+        // Prevent multiple starts
+        if (this.isPlaying) return;
+
         const charType = document.getElementById('char-select').value;
         const diff = document.getElementById('diff-select').value;
 
-        console.log('Character:', charType);
-        console.log('Difficulty:', diff);
+        try {
+            this.player = new Player(this.scene, this.camera, this.input, charType);
+            this.weapon = new Weapon('rifle');
+            
+            this.input.onShoot = () => {
+                if (this.isPlaying && this.player && this.weapon) {
+                    this.player.shoot(this.weapon, this.raycaster, this.bots, (bot) => {
+                        this.killBot(bot);
+                        this.ui.showHitMarker();
+                    });
+                }
+            };
+            
+            this.input.onReload = () => {
+                if (this.isPlaying && this.weapon) {
+                    this.weapon.reload(() => {
+                        this.ui.updateAmmo(this.weapon.currentAmmo, this.weapon.totalAmmo);
+                    });
+                }
+            };
 
-        this.player = new Player(this.scene, this.camera, this.input, charType);
-        this.weapon = new Weapon('rifle');
-        
-        this.input.onShoot = () => {
-            if (this.isPlaying && this.player && this.weapon) {
-                this.player.shoot(this.weapon, this.raycaster, this.bots, (bot) => {
-                    this.killBot(bot);
-                    this.ui.showHitMarker();
-                });
+            this.bots = [];
+            for(let i = 0; i < CONFIG.botCount; i++) {
+                this.bots.push(new Bot(this.scene, diff));
             }
-        };
-        
-        this.input.onReload = () => {
-            if (this.isPlaying && this.weapon) {
-                this.weapon.reload(() => {
-                    this.ui.updateAmmo(this.weapon.currentAmmo, this.weapon.totalAmmo);
-                });
-            }
-        };
-        
-        this.bots = [];
-        for(let i = 0; i < CONFIG.botCount; i++) {
-            this.bots.push(new Bot(this.scene, diff));
+
+            this.isPlaying = true;
+            this.playerKills = 0;
+            this.ui.startGame();
+            this.ui.updateHealth(this.player.health, this.player.maxHealth);
+            this.ui.updateAmmo(this.weapon.currentAmmo, this.weapon.totalAmmo);
+            
+            document.body.requestPointerLock();
+
+            // 🔥 FINAL FIX: Start animation ONLY after everything is ready
+            this.animate(); // This is safe now
+
+        } catch (e) {
+            console.error('[GAME ERROR] Failed to start:', e);
+            alert('Game failed to start. Check console for details.');
+        }
+    }
+
+    animate() {
+        // 🔒 Guard against re-entrancy
+        if (!this.isPlaying || !this.renderer || !this.scene || !this.camera) {
+            cancelAnimationFrame(this.animationFrameId);
+            return;
         }
 
-        this.isPlaying = true;
-        this.playerKills = 0;
-        this.ui.startGame();
-        this.ui.updateHealth(this.player.health, this.player.maxHealth);
-        this.ui.updateAmmo(this.weapon.currentAmmo, this.weapon.totalAmmo);
-        
-        document.body.requestPointerLock();
-        
-        console.log('Game Started Successfully');
-        this.animate();
+        try {
+            const dt = Math.min(this.clock.getDelta(), 0.1);
+
+            if (this.weapon) this.weapon.update();
+            if (this.player) this.player.update(dt, this.weapon ? this.weapon.recoil : 0);
+            
+            if (this.bots && this.player) {
+                this.bots.forEach(bot => {
+                    const botFired = bot.update(dt, this.player.camera.position, this.player.mesh);
+                    if (botFired) {
+                        if (Math.random() > 0.4) {
+                            const dead = this.player.takeDamage(8);
+                            if (this.ui) this.ui.updateHealth(this.player.health, this.player.maxHealth);
+                            if (this.ui) this.ui.showDamageFlash();
+                            if (dead) this.gameOver();
+                        }
+                    }
+                });
+            }
+
+            if (this.ui && this.weapon) {
+                this.ui.updateAmmo(this.weapon.currentAmmo, this.weapon.totalAmmo);
+            }
+            
+            if (Math.random() < 0.02 && this.ui) {
+                this.ui.updateLeaderboard(this.playerKills, this.bots);
+            }
+
+            this.renderer.render(this.scene, this.camera);
+
+        } catch (e) {
+            console.error('[RENDER ERROR]', e);
+            // If render fails, stop the loop to prevent freeze
+            cancelAnimationFrame(this.animationFrameId);
+            return;
+        }
+
+        // ✅ Safe recursive call
+        this.animationFrameId = requestAnimationFrame(() => this.animate());
     }
 
     killBot(bot) {
@@ -229,41 +274,11 @@ export class Game {
 
     gameOver() {
         this.isPlaying = false;
+        if (this.animationFrameId) {
+            cancelAnimationFrame(this.animationFrameId);
+            this.animationFrameId = null;
+        }
         document.exitPointerLock();
         this.ui.endGame(this.playerKills);
-    }
-
-    animate() {
-        if (!this.isPlaying) return;
-        requestAnimationFrame(this.animate);
-
-        const dt = Math.min(this.clock.getDelta(), 0.1);
-
-        if (this.weapon) this.weapon.update();
-        if (this.player) this.player.update(dt, this.weapon ? this.weapon.recoil : 0);
-        
-        if (this.bots && this.player) {
-            this.bots.forEach(bot => {
-                const botFired = bot.update(dt, this.player.camera.position, this.player.mesh);
-                if (botFired) {
-                    if (Math.random() > 0.4) {
-                        const dead = this.player.takeDamage(8);
-                        if (this.ui) this.ui.updateHealth(this.player.health, this.player.maxHealth);
-                        if (this.ui) this.ui.showDamageFlash();
-                        if (dead) this.gameOver();
-                    }
-                }
-            });
-        }
-
-        if (this.ui && this.weapon) {
-            this.ui.updateAmmo(this.weapon.currentAmmo, this.weapon.totalAmmo);
-        }
-        
-        if (Math.random() < 0.02 && this.ui) {
-            this.ui.updateLeaderboard(this.playerKills, this.bots);
-        }
-
-        this.renderer.render(this.scene, this.camera);
     }
 }
