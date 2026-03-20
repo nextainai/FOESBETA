@@ -1,34 +1,50 @@
 export default class Weapon {
-  constructor(type) {
+  constructor(type, camera) {
     this.type = type;
+    this.camera = camera;
 
-    if (type === "rifle") {
-      this.ammo = 30;
-      this.damage = 10;
-      this.fireRate = 100;
-      this.recoil = 0.02;
-    } else {
-      this.ammo = 12;
-      this.damage = 20;
-      this.fireRate = 400;
-      this.recoil = 0.05;
-    }
+    this.ammo = type === "rifle" ? 30 : 12;
+    this.damage = type === "rifle" ? 10 : 20;
+
+    this.fireRate = type === "rifle" ? 100 : 400;
+    this.recoil = type === "rifle" ? 0.02 : 0.05;
 
     this.lastShot = 0;
+
+    this.createModel();
   }
 
-  canShoot() {
-    return Date.now() - this.lastShot > this.fireRate;
+  createModel() {
+    this.gun = new THREE.Mesh(
+      new THREE.BoxGeometry(0.3, 0.2, 1),
+      new THREE.MeshStandardMaterial({ color: 0x22c55e })
+    );
+
+    this.gun.position.set(0.5, -0.5, -1);
+    this.camera.add(this.gun);
   }
 
-  shoot(camera) {
-    if (this.ammo <= 0 || !this.canShoot()) return false;
+  update(isMoving) {
+    // sway
+    if (isMoving) {
+      this.gun.position.x = 0.5 + Math.sin(Date.now()*0.01)*0.05;
+    }
+  }
+
+  shoot() {
+    if (this.ammo <= 0) return false;
+    if (Date.now() - this.lastShot < this.fireRate) return false;
 
     this.lastShot = Date.now();
     this.ammo--;
 
-    // recoil
-    camera.rotation.x -= this.recoil;
+    // recoil animation
+    this.gun.position.z += 0.2;
+    setTimeout(() => {
+      this.gun.position.z -= 0.2;
+    }, 50);
+
+    this.camera.rotation.x -= this.recoil;
 
     return true;
   }
