@@ -1,30 +1,26 @@
 import { CONFIG, BOT_NAMES } from './config.js';
 
 export class Bot {
-    constructor(scene, difficulty, audioManager) {
-        this.audioManager = audioManager;
+    constructor(scene, difficulty) {
         this.difficulty = difficulty;
-        
-        // Create bot with glowing material
-        const botColor = CONFIG.colors.enemy;
         this.mesh = new THREE.Mesh(
             new THREE.BoxGeometry(1.5, 3, 1.5),
             new THREE.MeshStandardMaterial({ 
-                color: botColor,
-                emissive: botColor,
-                emissiveIntensity: 0.4,
+                color: CONFIG.colors.enemy,
+                emissive: CONFIG.colors.enemy,
+                emissiveIntensity: 0.3,
                 roughness: 0.3,
                 metalness: 0.5
             })
         );
         
-        // FIXED: Spawn bots far from player
+        // ✅ FIXED: Spawn far away (Rivals style)
         const angle = Math.random() * Math.PI * 2;
-        const distance = CONFIG.botSpawnDistance + Math.random() * 15;
+        const dist = CONFIG.botSpawnDistance + Math.random() * 20;
         this.mesh.position.set(
-            Math.cos(angle) * distance,
+            Math.cos(angle) * dist,
             1.5,
-            Math.sin(angle) * distance
+            Math.sin(angle) * dist
         );
         
         this.mesh.userData = { 
@@ -35,43 +31,43 @@ export class Bot {
         };
         scene.add(this.mesh);
 
-        // Bot head (for visual)
-        const headGeo = new THREE.BoxGeometry(1, 1, 1);
-        const headMat = new THREE.MeshStandardMaterial({ 
-            color: botColor,
-            emissive: botColor,
-            emissiveIntensity: 0.5
-        });
-        this.head = new THREE.Mesh(headGeo, headMat);
-        this.head.position.y = 1.8;
-        this.mesh.add(this.head);
+        // Head
+        const head = new THREE.Mesh(
+            new THREE.BoxGeometry(1, 1, 1),
+            new THREE.MeshStandardMaterial({ 
+                color: CONFIG.colors.enemy,
+                emissive: CONFIG.colors.enemy,
+                emissiveIntensity: 0.4
+            })
+        );
+        head.position.y = 1.8;
+        this.mesh.add(head);
 
-        // AI State
+        // AI
         this.state = 'PATROL';
-        this.targetPos = this.getRandomPosition();
+        this.targetPos = this.getRandomPos();
         this.lastShot = 0;
         this.reactionTimer = 0;
         
-        // Difficulty settings
         this.moveSpeed = difficulty === 'easy' ? 5 : (difficulty === 'medium' ? 8 : 11);
-        this.fireRate = CONFIG.botFireRate[difficulty] || 1000;
-        this.accuracy = CONFIG.botAccuracy[difficulty] || 0.5;
-        this.damage = CONFIG.botDamage[difficulty] || 8;
-        this.reactionDelay = CONFIG.botReactionDelay[difficulty] || 1000;
+        this.fireRate = CONFIG.botFireRate[difficulty];
+        this.accuracy = CONFIG.botAccuracy[difficulty];
+        this.damage = CONFIG.botDamage[difficulty];
+        this.reactionDelay = CONFIG.botReactionDelay[difficulty];
     }
 
-    getRandomPosition() {
-        const x = (Math.random() * 80) - 40;
-        const z = (Math.random() * 80) - 40;
-        return new THREE.Vector3(x, 1.5, z);
+    getRandomPos() {
+        return new THREE.Vector3(
+            (Math.random() * 90) - 45,
+            1.5,
+            (Math.random() * 90) - 45
+        );
     }
 
-    update(dt, playerPos, playerMesh) {
+    update(dt, playerPos) {
         const dist = this.mesh.position.distanceTo(playerPos);
-        
-        // State machine with delays
         this.reactionTimer += dt * 1000;
-        
+
         if (dist < 35 && this.reactionTimer > this.reactionDelay) {
             this.state = 'ATTACK';
         } else if (dist < 50) {
@@ -82,7 +78,7 @@ export class Bot {
 
         if (this.state === 'PATROL') {
             if (this.mesh.position.distanceTo(this.targetPos) < 2) {
-                this.targetPos = this.getRandomPosition();
+                this.targetPos = this.getRandomPos();
             }
             this.moveTo(this.targetPos, dt);
         } else if (this.state === 'CHASE') {
@@ -92,22 +88,21 @@ export class Bot {
             
             const now = Date.now();
             if (now - this.lastShot > this.fireRate) {
-                // Aim with accuracy spread
-                const direction = new THREE.Vector3().subVectors(playerPos, this.mesh.position).normalize();
+                const dir = new THREE.Vector3().subVectors(playerPos, this.mesh.position).normalize();
                 
-                // Add inaccuracy based on difficulty
-                const spread = (1 - this.accuracy) * 0.3;
-                direction.x += (Math.random() - 0.5) * spread;
-                direction.y += (Math.random() - 0.5) * spread;
-                direction.z += (Math.random() - 0.5) * spread;
-                direction.normalize();
+                // Aim spread
+                const spread = (1 - this.accuracy) * 0.4;
+                dir.x += (Math.random() - 0.5) * spread;
+                dir.y += (Math.random() - 0.5) * spread;
+                dir.z += (Math.random() - 0.5) * spread;
+                dir.normalize();
                 
-                const raycaster = new THREE.Raycaster(this.mesh.position, direction);
-                const hits = raycaster.intersectObject(playerMesh);
+                const raycaster = new THREE.Raycaster(this.mesh.position, dir);
+                const hits = raycaster.intersectObject(this.playerHitbox);
                 
                 if (hits.length > 0) {
                     this.lastShot = now;
-                    return true; // Bot fired
+                    return true;
                 }
                 this.lastShot = now;
             }
@@ -117,7 +112,7 @@ export class Bot {
 
     moveTo(target, dt) {
         const dir = new THREE.Vector3().subVectors(target, this.mesh.position);
-        dir.y = 0; // Keep on ground
+        dir.y = 0;
         dir.normalize();
         this.mesh.position.add(dir.multiplyScalar(this.moveSpeed * dt));
         this.lookAt(target);
@@ -129,16 +124,8 @@ export class Bot {
 
     takeDamage(amount) {
         this.mesh.userData.health -= amount;
-        
-        // Flash white on hit
         this.mesh.material.emissive.setHex(0xffffff);
-        setTimeout(() => {
-            this.mesh.material.emissive.setHex(CONFIG.colors.enemy);
-        }, 100);
-
-        if (this.mesh.userData.health <= 0) {
-            return true;
-        }
-        return false;
+        setTimeout(() => this.mesh.material.emissive.setHex(CONFIG.colors.enemy), 100);
+        return this.mesh.userData.health <= 0;
     }
 }
